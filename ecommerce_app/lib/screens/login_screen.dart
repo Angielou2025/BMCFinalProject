@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_screen.dart';
+import 'home_screen.dart'; // ✅ Import mo ang HomeScreen
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,11 +15,52 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  bool _isLoading = false;
+
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loginUser() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      await _auth.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Login Successful!')),
+      );
+
+      // ✅ Pagkatapos mag-login, papunta na sa HomeScreen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const HomeScreen(),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      String message = 'An error occurred';
+      if (e.code == 'user-not-found') {
+        message = 'No user found for that email.';
+      } else if (e.code == 'wrong-password') {
+        message = 'Wrong password provided.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -40,7 +83,6 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
                 const SizedBox(height: 20),
                 const Text(
                   "Welcome Back!",
@@ -50,15 +92,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: Colors.deepPurple,
                   ),
                 ),
-
                 const SizedBox(height: 5),
                 const Text(
                   "Login to continue",
                   style: TextStyle(fontSize: 16, color: Colors.black54),
                 ),
-
                 const SizedBox(height: 30),
 
+                // Email field
                 TextFormField(
                   controller: _emailController,
                   decoration: InputDecoration(
@@ -83,6 +124,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 15),
 
+                // Password field
                 TextFormField(
                   controller: _passwordController,
                   obscureText: true,
@@ -107,6 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 25),
 
+                // Login Button
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -117,15 +160,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        print('Email: ${_emailController.text}');
-                        print('Password: ${_passwordController.text}');
-                      }
-                    },
-                    child: const Text(
+                    onPressed: _isLoading ? null : _loginUser,
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
                       'Login',
-                      style: TextStyle(fontSize: 18, color: Colors.white),
+                      style:
+                      TextStyle(fontSize: 18, color: Colors.white),
                     ),
                   ),
                 ),
